@@ -17,6 +17,7 @@ Thumbs.db
 .env
 .idea/
 .vscode/
+.bin
 
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
