@@ -10,7 +10,7 @@ from langchain_community.document_loaders import (
     Docx2txtLoader
 )
 
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter, MarkdownHeaderTextSplitter
 
 import tiktoken
 from typing import List, Union
@@ -29,13 +29,19 @@ from typing import List, Tuple
 from typing import List, Union, Iterable
 from langchain_core.documents import Document
 
+import random
+import json
+from IPython.display import Markdown, display
+
 # Map extensions to their specific loader classes
 LOADER_MAPPING = {
     ".txt": TextLoader,
+    ".md": TextLoader,
     ".pdf": PyPDFLoader,
     ".csv": CSVLoader,
     ".docx": Docx2txtLoader,
 }
+
 
 def langchain_document_loader(tmp_dir: Path):
     documents = []
@@ -47,15 +53,11 @@ def langchain_document_loader(tmp_dir: Path):
             glob=f"**/*{ext}", 
             loader_cls=loader_cls,
             # Pass encoding only to loaders that need/support it
-            loader_kwargs={"encoding": "utf8"} if ext == ".csv" else {}
+            loader_kwargs={"encoding": "utf8"} if ext in [".txt", ".md", ".csv"] else {}
         )
         documents.extend(loader.load())
         
     return documents
-
-import random
-import json
-from IPython.display import Markdown, display
 
 def show_random_preview(docs):
     """
@@ -121,6 +123,28 @@ def create_text_splitter(
     )
     return splitter
 
+def create_advanced_markdown_splitter(chunk_size=1600, chunk_overlap=200):
+    # 1. Define the structural boundaries
+    headers_to_split_on = [
+        ("#", "Header_1"),
+        ("##", "Header_2"),
+        ("###", "Header_3"),
+    ]
+    
+    # 2. Initialize the structural splitter
+    markdown_splitter = MarkdownHeaderTextSplitter(
+        headers_to_split_on=headers_to_split_on, 
+        strip_headers=False # Keep headers in the text so the LLM sees them
+    )
+    
+    # 3. Initialize your existing recursive splitter for the "fine-tuning"
+    recursive_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+        separators=["\n\n", "\n", " ", ""]
+    )
+    
+    return markdown_splitter, recursive_splitter
 
 def split_documents(documents, splitter: RecursiveCharacterTextSplitter):
     """
